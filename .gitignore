@@ -1,0 +1,4 @@
+/docker/firebase/data
+/docker/firebase/config/configstore
+/functions/dist
+/functions/firebase-export*

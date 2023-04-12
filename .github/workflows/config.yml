@@ -1,0 +1,89 @@
+name: DeployApp
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  app-build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18.x
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FUNCTIONS_PATH: ${{ secrets.STAGING_FUNCTIONS_URL }}
+      - name: Lint
+        run: npm run lint
+      - name: Login Firebase
+        uses: google-github-actions/auth@v0
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+      - name: Install firebase cli
+        run: npm install -g firebase-tools
+      - name: Deploy
+        run: firebase deploy --only hosting
+        env:
+          NEXT_PUBLIC_FUNCTIONS_PATH: ${{ secrets.STAGING_FUNCTIONS_URL }}
+  functions-build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18.x
+      - name: Create env
+        shell: bash
+        run: |
+          touch .env
+          echo "APP_ENV=${{ secrets.STAGING_APP_ENV }}" >> .env
+          echo "FB_API_KEY=${{ secrets.STAGING_FB_API_KEY }}" >> .env
+          echo "FB_APP_ID=${{ secrets.STAGING_FB_APP_ID }}" >> .env
+          echo "FB_AUTH_DOMAIN=${{ secrets.STAGING_FB_AUTH_DOMAIN }}" >> .env
+          echo "FB_PROJECT_ID=${{ secrets.STAGING_FB_PROJECT_ID }}" >> .env
+          echo "FB_STORAGE_BUCKET=${{ secrets.STAGING_FB_STORAGE_BUCKET }}" >> .env
+          echo "FB_MESSAGING_SENDER_ID=${{ secrets.STAGING_FB_MESSAGING_SENDER_ID }}" >> .env
+          echo "FB_AUTH_URL=${{ secrets.STAGING_FB_AUTH_URL }}" >> .env
+          echo "FUNCTIONS_URL=${{ secrets.STAGING_FUNCTIONS_URL }}" >> .env
+          echo "FRONT_DOMAIN=${{ secrets.STAGING_FRONT_DOMAIN }}" >> .env
+          echo "FRONT_URL=${{ secrets.STAGING_FRONT_URL }}" >> .env
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Login Firebase
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+      - name: Install firebase cli
+        run: npm install -g firebase-tools
+      - name: Run Emulator
+        run: firebase emulators:exec --project demo-local 'npm run test'
+        env:
+          APP_ENV: "local"
+          FB_API_KEY: "test"
+          FB_APP_ID: "test"
+          FB_AUTH_DOMAIN: "firebase"
+          FB_DATABASE_URL: ""
+          FB_PROJECT_ID: "demo-local"
+          FB_STORAGE_BUCKET: "gs://demo-local.appspot.com/"
+          FB_MESSAGING_SENDER_ID: ""
+          FUNCTIONS_URL: "http://localhost:5001/demo-local/asia-northeast1"
+          FRONT_DOMAIN: "localhost"
+          FRONT_URL: "http://localhost:53001"
+      - name: Deploy
+        run: firebase deploy --only functions --debug

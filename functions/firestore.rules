@@ -1,0 +1,24 @@
+rules_version = '2';
+
+service cloud.firestore {
+    function isAuthenticated() {
+        return request.auth != null
+    }
+
+    function isUserAuthenticated(userId) {
+        return isAuthenticated() && userId == request.auth.uid;
+    }
+
+    match /databases/{database}/documents {
+        // 一旦全部禁止
+        match /{document=**} {
+            allow read, write: if false;
+        }
+
+        match /users {
+            match /{userId} {
+                allow get, create, update: if true;
+            }
+        }
+    }
+}

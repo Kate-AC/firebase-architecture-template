@@ -1,0 +1,41 @@
+version: '3'
+services:
+  front:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    command: npx next dev -p 51001
+    tty: true
+    volumes:
+      - ./app:/project:cached
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WDS_SOCKET_PORT=51001
+    ports:
+      - 51001:51001
+    networks:
+      default:
+    env_file: ./app/.env.local
+  firebase:
+    build:
+      context: .
+      dockerfile: ./docker/firebase/Dockerfile
+    volumes:
+      - ./functions:/opt/firebase
+      - firebase-export-data:/var/local/firebase
+    ports:
+      - 4000:4000 #Emulator Suite UI
+      - 8080:8080 #Cloud Firestore
+      - 5001:5001
+      - 5000:5000
+      - 9099:9099 # auth
+      - 9199:9199
+      - 9150:9150
+      - 8085:8085
+      - 4500:4500
+    command: /bin/bash -c "npm run build && firebase emulators:start --project demo-local --import=/var/local/firebase/export_data/firestore_export --export-on-exit"
+    tty: true
+    env_file: ./functions/.env.local
+volumes:
+  firebase-export-data:
+    external: false
